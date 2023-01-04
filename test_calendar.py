@@ -12,7 +12,7 @@ morning = False
 
 #finds last calendar
 
-files= Path('./').glob("Calendario II anno Imola al*")
+files= Path('./').glob("*.ods")
 latest=max([f for f in files], key=lambda item: item.stat().st_ctime)
 
 # read odf file and convert into a dataframe object
