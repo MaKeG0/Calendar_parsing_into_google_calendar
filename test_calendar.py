@@ -19,8 +19,8 @@ latest=max([f for f in files], key=lambda item: item.stat().st_ctime)
 df = pd.DataFrame(pd.read_excel (latest, engine="odf"))
 
 #removes all empty and useless columns
+df=df[["Giorno","Orario mattino","Docente","Unità formativa","Orario pomeriggo","Docente.1","Unità formativa.1"]]
 df.dropna(axis=1,how='all',inplace=True )
-df.drop(columns=["Unnamed: 9","Unnamed: 10","Unnamed: 11","tot ore","giorno settimana"],inplace=True)
 
 #check if there are events in the morning
 if 'Orario mattino' in df.columns:
