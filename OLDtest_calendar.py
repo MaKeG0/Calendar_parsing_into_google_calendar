@@ -1,5 +1,4 @@
-#note filter to see all columns that are enterly emtpy df.isnull().all()
-
+#deprecated
 #importing pandas as pd
 import pandas as pd
 #importing numpy as pd
