@@ -12,26 +12,34 @@ from googleapiclient import errors
 
 
 #variable for condition of having morning events or not
-morning = False
+morning_events_exist = False
 file_scelto=""
-ok=""
-#finds last calendar
+user_input=""
+#saves list of files in the current directory
 files= list(Path('./').glob("*.ods"))
-while file_scelto=="" and (ok!="s" or ok!="S"):
-    ok=""
+#lists all the files in the current directory with .ods extension 
+#and asks for the index of the file to import
+while file_scelto=="" and (user_input!="s" or user_input!="S"):
+    #resets user_input and file_scelto to avoid errors
+    user_input=""
     file_scelto=""
     print("Quale tra questi files vuoi importare? (inserisci il numero corrispondente)")
     for i, latest in enumerate(files):
         print(f"{i}: {latest}")
     try:
+        #asks for the index of the file to import
         file_da_cercare=int(input())
+        #checks if the index is valid
         if file_da_cercare < len(files):
+            #asks if the user wants to continue
             print("Hai scelto il file ",files[file_da_cercare], " vuoi continuare? (s/n)")
-            ok=input()
-            if ok=="s" or ok=="S":
+            user_input=input()
+            #if the user wants to continue, the file is saved in file_scelto
+            if user_input=="s" or user_input=="S":
                 file_scelto=files[file_da_cercare]
         else: 
             print("Il numero non è valido, riprova")
+    #if the user doesn't insert a number, the program asks again
     except ValueError:
         print("Il dato inserito non è valido, riprova")
 #latest=max([f for f in files], key=lambda item: item.stat().st_ctime)
@@ -39,40 +47,63 @@ while file_scelto=="" and (ok!="s" or ok!="S"):
 #saves list of calendars available
 calendars=list(list_of_calendars())
 
-#lists all the calendars available
+
 calendar_id=""
-while calendar_id=="" and (ok!="s" or ok!="S"):
-    ok=""
+#lists all the calendars available and asks for the index of the calendar to update
+while calendar_id=="" and (user_input!="s" or user_input!="S"):
+    #resets user_input and calendar_id to avoid errors
+    user_input=""
     calendar_id=""
     print("Quale tra questi calendari vuoi aggiornare? (inserisci il numero corrispondente)")
     for i, calendar in enumerate(calendars):
         print(f"{i}: {calendar['summary']}")
-        
     #asks for the index of the calendar to update
     try:
         calendar_index=int(input())
+        #checks if the index is valid
         if calendar_index < len(calendars):
             calendario=calendars[calendar_index]
-            print("Hai scelto il calendario ",calendario['summary'], " vuoi continuare? (s/n)")
-            ok=input()
-            if ok=="s" or ok=="S":
+            #asks if the user wants to continue
+            print("Hai scelto il calendario ",calendario['summary'], " tutti gli eventi presenti verranno cancellati, vuoi continuare? (s/n)")
+            user_input=input()
+            #if the user wants to continue, the calendar['id'] is saved in calendar_id
+            if user_input=="s" or user_input=="S":
+                #finds the calendar id of the calendar with the summary of the calendar chosen
+                #as calendar_id and summary are not the same, i have to search for the summary
                 for calendar in calendars:
                     summary = calendar['summary']
                     if calendario['summary']==summary:
                         calendar_id=calendar['id']
         else:
+            #if the index is not valid, the program asks again
             print("Non hai scelto un calendario valido, riprova")
+    #if the user doesn't insert a number, the program asks again
     except ValueError:
         print("Il dato inserito non è valido, riprova")
 
 # Delete all events in the calendar with the name of calendar_name
 service = get_calendar_service()
 try:
-    events_result = service.events().list(calendarId=calendar_id).execute()
+    
+    events_result = service.events().list(calendarId=calendar_id, maxResults=2499).execute()
+    k=0
+    n_event_to_delete=int(len(events_result.get('items', [])))
+    print (n_event_to_delete," eventi da eliminare nel calendario ",calendario['summary'])
     for event in events_result.get('items', []):
         service.events().delete(calendarId=calendar_id, eventId=event['id']).execute()
-        print ("Event deleted: ", event['summary'],event['description'],event['start'])
-    print("Eventi eliminati nel calendario ",calendario['summary'])    
+        #for debug
+        #print ("Event deleted: ", event['summary'],event['description'],event['start'])
+        
+        #print progress
+        k+=1
+        if k%10==0:
+            print("Eventi eliminati: ",k,"/",n_event_to_delete," ",int(k*100/n_event_to_delete), '%')
+    #print if all events have been deleted or not
+    if k<n_event_to_delete:
+        print("ERRORE, non sono stati eliminati tutti gli eventi!")
+    else:
+        print("Tutti gli eventi sono stati eliminati!")
+    print(k," eventi eliminati in totale nel calendario ",calendario['summary'])    
 except errors.HttpError:
     print("Fallito a cancellare gli eventi nel calendario ",calendario['summary'])
 
@@ -85,7 +116,7 @@ df.dropna(axis=1,how='all',inplace=True )
 
 #check if there are events in the morning
 if 'Orario mattino' in df.columns:
-    morning = True
+    morning_events_exist = True
 
 #fills dates that have 2 events the same afternoon or morning
 s = df["Giorno"].eq("")
@@ -93,7 +124,7 @@ df.loc[s, "Giorno"] = np.nan
 df["Giorno"].ffill(inplace=True)
 
 #managing morning events
-if morning == True:
+if morning_events_exist == True:
     #the easy way to manage morning events is to create a separate dataset and then merge them
     df2=df[['Giorno','Orario mattino','Docente','Unità formativa']] 
     
@@ -101,10 +132,10 @@ if morning == True:
     df.drop(columns=["Orario mattino","Docente","Unità formativa"],inplace=True)
     
     #now i do the formatting for the morning dataframe
-    df2['Orario mattino'] = df2['Orario mattino'].str.replace('–','-')
-    df2['Orario mattino'] = df2['Orario mattino'].str.replace('.',':')
+    df2['Orario mattino'] = df2['Orario mattino'].str.replace('–','-',regex=False)
+    df2['Orario mattino'] = df2['Orario mattino'].str.replace('.',':',regex=False)
     
-    df2[['Start Time','End Time']]=df2['Orario mattino'].str.split('-',1,expand=True)
+    df2[['Start Time','End Time']]=df2['Orario mattino'].str.split(pat='-',n=1,expand=True,regex=False)
     
     df2.drop(columns=["Orario mattino"],inplace=True)
     
@@ -116,11 +147,11 @@ if morning == True:
     df2=df2[['Subject','Start Date','Start Time','End Time','Description']]
 
 #start formatting afternoon hours
-df['Orario pomeriggo'] = df['Orario pomeriggo'].str.replace('–','-')
-df['Orario pomeriggo'] = df['Orario pomeriggo'].str.replace('.',':')
+df['Orario pomeriggo'] = df['Orario pomeriggo'].str.replace('–','-',regex=False)
+df['Orario pomeriggo'] = df['Orario pomeriggo'].str.replace('.',':',regex=False)
 
 #splitting in start tame and end time
-df[['Start Time','End Time']]=df['Orario pomeriggo'].str.split('-',1,expand=True)
+df[['Start Time','End Time']]=df['Orario pomeriggo'].str.split(pat='-',n=1,expand=True,regex=False)
 
 #renaming columns for calendar csv template
 df.rename(columns={"Docente.1":"Description"},inplace=True)
@@ -128,7 +159,7 @@ df.rename(columns={"Unità formativa.1":"Subject"},inplace=True)
 df.rename(columns={"Giorno":"Start Date"},inplace=True)
 
 #drops all columns not needed in the calendar csv
-if morning == True:
+if morning_events_exist == True:
     df.drop(columns=["Orario pomeriggo"],inplace=True)
 
     #gets df ready for merging
@@ -159,6 +190,9 @@ def get_color_id(summary):
 
 try:
     # Itereate over the dataframe and create events
+    j=0
+    numero_eventi_da_creare=int(len(df.index))
+    print("Creazione di ",numero_eventi_da_creare," eventi nel calendario ",calendario['summary'])
     for index, row in df.iterrows():
         # Create the event json to be sent to the API
         event = {
@@ -177,9 +211,17 @@ try:
         }
         #send the event to the API
         service.events().insert(calendarId=calendar_id, body=event).execute()
-        i+=1
-        if i%10==0:
-            print("Eventi creati: ",i)
-    print("Eventi creati nel calendario ",calendario['summary'])
+        #print the progress
+        j+=1
+        if j%10==0:
+            print("Eventi creati: ",j,"/",numero_eventi_da_creare," ",int(j*100/numero_eventi_da_creare), '%')
+    print(j , " eventi creati in totale nel calendario ",calendario['summary'])
 except errors.HttpError:
         print("Fallito a creare gli eventi nel calendario ",calendario['summary'])
+        
+#prints the summary of the import
+print("Importazione completata, riassunto:")
+print("dal file: ",file_scelto )
+print("calendario aggiornato: ",calendario['summary'])
+print("eventi eliminati: ",k)
+print("eventi creati: ",j)
