@@ -10,7 +10,16 @@ from list_calendars import list_of_calendars
 #importing googleapiclient errors to handle errors in the calendar api
 from googleapiclient import errors
 
-
+print("Benvenuto nel programma di aggiornamento del calendario di Google Calendar")
+print("Questo programma aggiorna un calendario di Google Calendar con gli eventi di un file .ods")
+print("Per utilizzarlo, devi avere un file .ods con gli eventi da aggiungere al calendario")
+print("Per prima cosa, devi avere un file .json con le credenziali di Google Calendar")
+print("Per ottenere il file .json, segui le istruzioni su https://developers.google.com/calendar/quickstart/python")
+print("Come prima cosa verranno elencati i file .ods presenti nella cartella corrente")
+print("Inserisci il numero corrispondente al file che vuoi importare")
+print("Successivamente verranno elencati i calendari disponibili")
+print("Inserisci il numero corrispondente al calendario in cui vuoi aggiungere gli eventi")
+print("Il programma proseguirà con la pulizia dei vecchi eventi e l'aggiunta dei nuovi eventi")
 #variable for condition of having morning events or not
 morning_events_exist = False
 file_scelto=""
@@ -19,6 +28,10 @@ user_input=""
 files= list(Path('./').glob("*.ods"))
 #lists all the files in the current directory with .ods extension 
 #and asks for the index of the file to import
+if len(files)==0:
+    print("Non ci sono files .ods nella cartella corrente")
+    input("Premi invio per uscire")
+    exit()
 while file_scelto=="" and (user_input!="s" or user_input!="S"):
     #resets user_input and file_scelto to avoid errors
     user_input=""
@@ -83,14 +96,15 @@ while calendar_id=="" and (user_input!="s" or user_input!="S"):
 
 # Delete all events in the calendar with the name of calendar_name
 service = get_calendar_service()
+#creates a batch request to delete all the events in the calendar
+batch_delete = service.new_batch_http_request()
 try:
-    
     events_result = service.events().list(calendarId=calendar_id, maxResults=2499).execute()
     k=0
     n_event_to_delete=int(len(events_result.get('items', [])))
     print (n_event_to_delete," eventi da eliminare nel calendario ",calendario['summary'])
     for event in events_result.get('items', []):
-        service.events().delete(calendarId=calendar_id, eventId=event['id']).execute()
+        batch_delete.add(service.events().delete(calendarId=calendar_id, eventId=event['id']))
         #for debug
         #print ("Event deleted: ", event['summary'],event['description'],event['start'])
         
@@ -99,6 +113,7 @@ try:
         if k%10==0:
             print("Eventi eliminati: ",k,"/",n_event_to_delete," ",int(k*100/n_event_to_delete), '%')
     #print if all events have been deleted or not
+    batch_delete.execute()
     if k<n_event_to_delete:
         print("ERRORE, non sono stati eliminati tutti gli eventi!")
     else:
@@ -188,8 +203,11 @@ def get_color_id(summary):
     color_id = (hash(summary) % 10)+1
     return str(color_id)
 
+# Create the batch request to send to the API to create events
+batch_insert = service.new_batch_http_request()
 try:
     # Itereate over the dataframe and create events
+    
     j=0
     numero_eventi_da_creare=int(len(df.index))
     print("Creazione di ",numero_eventi_da_creare," eventi nel calendario ",calendario['summary'])
@@ -209,12 +227,14 @@ try:
                 'timeZone': 'Europe/Rome'
             },
         }
-        #send the event to the API
-        service.events().insert(calendarId=calendar_id, body=event).execute()
+        # Add the event to the batch
+        batch_insert.add(service.events().insert(calendarId=calendar_id, body=event))
         #print the progress
         j+=1
         if j%10==0:
             print("Eventi creati: ",j,"/",numero_eventi_da_creare," ",int(j*100/numero_eventi_da_creare), '%')
+    # Execute the batch 
+    batch_insert.execute()
     print(j , " eventi creati in totale nel calendario ",calendario['summary'])
 except errors.HttpError:
         print("Fallito a creare gli eventi nel calendario ",calendario['summary'])
@@ -225,3 +245,4 @@ print("dal file: ",file_scelto )
 print("calendario aggiornato: ",calendario['summary'])
 print("eventi eliminati: ",k)
 print("eventi creati: ",j)
+input("Premi un tasto per uscire")
