@@ -1,4 +1,3 @@
-import datetime
 import pickle
 import os.path
 from googleapiclient.discovery import build
@@ -31,5 +30,5 @@ def get_calendar_service():
        with open('token.pickle', 'wb') as token:
            pickle.dump(creds, token)
 
-   service = build('calendar', 'v3', credentials=creds)
+   service = build('calendar', 'v3', credentials=creds,static_discovery=False)
    return service
