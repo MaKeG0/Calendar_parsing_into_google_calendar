@@ -31,4 +31,5 @@ def get_calendar_service():
            pickle.dump(creds, token)
 
    service = build('calendar', 'v3', credentials=creds,static_discovery=False)
+   #print(service)
    return service
