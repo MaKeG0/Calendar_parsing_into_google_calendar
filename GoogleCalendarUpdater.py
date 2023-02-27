@@ -149,6 +149,7 @@ if morning_events_exist == True:
     #now i do the formatting for the morning dataframe
     df2['Orario mattino'] = df2['Orario mattino'].str.replace('–','-',regex=False)
     df2['Orario mattino'] = df2['Orario mattino'].str.replace('.',':',regex=False)
+    df2['Orario mattino'] = df2['Orario mattino'].str.replace(',',':',regex=False)
     
     df2[['Start Time','End Time']]=df2['Orario mattino'].str.split(pat='-',n=1,expand=True,regex=False)
     
@@ -164,6 +165,7 @@ if morning_events_exist == True:
 #start formatting afternoon hours
 df['Orario pomeriggo'] = df['Orario pomeriggo'].str.replace('–','-',regex=False)
 df['Orario pomeriggo'] = df['Orario pomeriggo'].str.replace('.',':',regex=False)
+df['Orario pomeriggo'] = df['Orario pomeriggo'].str.replace(',',':',regex=False)
 
 #splitting in start tame and end time
 df[['Start Time','End Time']]=df['Orario pomeriggo'].str.split(pat='-',n=1,expand=True,regex=False)
